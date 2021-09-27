@@ -356,29 +356,6 @@ final class SejoliPaypal extends \SejoliSA\Payment{
                     'value' => true
                 )
             )),
-
-            Field::make('text', 'paypal_live_token', __('Token Paypal Live', 'sejoli-paypal'))->set_conditional_logic(array(
-                array(
-                    'field' => 'paypal_active',
-                    'value' => true
-                ),array(
-                    'field' => 'paypal_mode',
-                    'value' => 'live'
-                )
-            )),
-
-            Field::make('text', 'paypal_live_token_expiration', __('Token Paypal Expiration Live', 'sejoli-paypal'))->set_conditional_logic(array(
-                array(
-                    'field' => 'paypal_active',
-                    'value' => true
-                ),array(
-                    'field' => 'paypal_mode',
-                    'value' => 'live'
-                )
-            )),
-
-            Field::make('text', 'paypal_sandbox_token', __('Token Paypal Sandbox', 'sejoli-paypal')),
-            Field::make('text', 'paypal_sandbox_token_expiration', __('Token Paypal Expiration Sandbox', 'sejoli-paypal')),
         );
 
     }
@@ -430,7 +407,7 @@ final class SejoliPaypal extends \SejoliSA\Payment{
 
     /**
      * Set order price if there is any fee need to be added
-     * @since   1.0.0
+     * @since   1.0.0ddddddd
      * @param   float $price
      * @param   array $order_data
      * @return  float
@@ -508,8 +485,8 @@ final class SejoliPaypal extends \SejoliSA\Payment{
                 $apiUri        = 'https://api-m.paypal.com/v1';
                 $client_id     = carbon_get_theme_option( 'paypal_client_id_live' );
                 $client_secret = carbon_get_theme_option( 'paypal_client_secret_live' );
-                $token         = carbon_get_theme_option( 'paypal_live_token' );
-                $tokenExpiry   = carbon_get_theme_option( 'paypal_live_token_expiration' );
+                $token         = get_option( 'paypal_live_token' );
+                $tokenExpiry   = get_option( 'paypal_live_token_expiration' );
                 $baseAppUrl    = 'https://api-m.paypal.com';
      
             } else {
@@ -517,8 +494,8 @@ final class SejoliPaypal extends \SejoliSA\Payment{
                 $apiUri        = 'https://api-m.sandbox.paypal.com/v1';
                 $client_id     = carbon_get_theme_option( 'paypal_client_id_sandbox' );
                 $client_secret = carbon_get_theme_option( 'paypal_client_secret_sandbox' );
-                $token         = carbon_get_theme_option( 'paypal_sandbox_token' );
-                $tokenExpiry   = carbon_get_theme_option( 'paypal_sandbox_token_expiration' );
+                $token         = get_option( 'paypal_sandbox_token' );
+                $tokenExpiry   = get_option( 'paypal_sandbox_token_expiration' );
                 $baseAppUrl    = 'https://api-m.sandbox.paypal.com';
             
             }
@@ -757,12 +734,12 @@ final class SejoliPaypal extends \SejoliSA\Payment{
             elseif( in_array( $order['status'], array( 'refunded', 'cancelled' ) ) ) :
 
                 $title = __('Order telah dibatalkan', 'sejoli-paypal');
-                require SEJOLISA_DIR . 'template/checkout/order-cancelled.php';
+                require 'template/checkout/order-cancelled.php';
 
             else :
 
                 $title = __('Order sudah diproses', 'sejoli-paypal');
-                require SEJOLISA_DIR . 'template/checkout/order-processed.php';
+                require 'template/checkout/order-processed.php';
 
             endif;
 
@@ -781,16 +758,30 @@ final class SejoliPaypal extends \SejoliSA\Payment{
      */
     public function display_payment_instruction( $invoice_data, $media = 'email' ) {
 
-        if( 'on-hold' !== $invoice_data['order_data']['status'] ) :
+        // if( 'on-hold' !== $invoice_data['order_data']['status'] ) :
+        //     return;
+        // endif;
+
+        // ob_start();
+
+        // // PUT TEMPLATE ON PAYMENT INSTRUCTION HERE BASED ON MEDIA
+        // $content = ob_get_contents();
+
+        // ob_end_clean();
+
+        // return $content;
+        
+        if('on-hold' !== $invoice_data['order_data']['status']) :
             return;
         endif;
 
-        ob_start();
-
-        // PUT TEMPLATE ON PAYMENT INSTRUCTION HERE BASED ON MEDIA
-        $content = ob_get_contents();
-
-        ob_end_clean();
+        $content = sejoli_get_notification_content(
+                        'duitku',
+                        $media,
+                        array(
+                            'order' => $invoice_data['order_data']
+                        )
+                    );
 
         return $content;
     
@@ -857,8 +848,8 @@ final class SejoliPaypal extends \SejoliSA\Payment{
         if ( isset( $resBody['access_token'] ) && !empty( $resBody['access_token'] ) ) {
             
             $mode = carbon_get_theme_option( 'paypal_mode' );
-            carbon_set_theme_option( 'paypal_'.$mode.'_token', $resBody['access_token'] );
-            carbon_set_theme_option( 'paypal_'.$mode.'_token_expiration', time() + 3600 );
+            add_option( 'paypal_'.$mode.'_token', $resBody['access_token'] );
+            add_option( 'paypal_'.$mode.'_token_expiration', time() + 3600 );
 
             return $resBody['access_token'];
         
