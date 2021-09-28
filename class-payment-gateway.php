@@ -549,7 +549,7 @@ final class SejoliPaypal extends \SejoliSA\Payment{
             $url_success   = home_url( 'member-area' );
             
             if ( !empty( $token ) ) {
-      
+        
                 $payID    = isset( $_GET['paymentId'] ) ? $_GET['paymentId'] : '';
                 $payToken = isset( $_GET['token'] ) ? $_GET['token'] : '';
                 $payerID  = isset( $_GET['PayerID'] ) ? $_GET['PayerID'] : '';
@@ -572,29 +572,22 @@ final class SejoliPaypal extends \SejoliSA\Payment{
                         'status' => 'payment-confirm'
                     );
 
-                    if ( $executeTransaction['state'] == 'approved' ) {
+                    if ( $executeTransaction['state'] === 'approved' ) {
                         $this->update_status( $order['ID'], 'paid' );
                         sejolisa_update_order_status( $args );
 
                         wp_redirect( $redirect_urls );
+                        exit;
+
                     }
                     
                 } else {
 
                     if ( isset( $order['meta_data']['shipping_data'] ) ) {
-                    
-                        $subtotal = $this->currency_convert( $order['grand_total'] ) - $this->currency_convert( $order['meta_data']['shipping_data']['cost'] ); 
-                    
-                    } else {
-                    
-                        $subtotal = $this->currency_convert( $order['grand_total'] ); 
-                    
-                    }
-
-                    if ( isset( $order['meta_data']['shipping_data'] ) ) {
 
                         $grand_total               = $this->currency_convert( $order['grand_total'] );
-                        $product_price             = $this->currency_convert( $order['product']->price );
+                        $subtotal                  = $this->currency_convert( $order['grand_total'] ) - $this->currency_convert($order['meta_data']['shipping_data']['cost']);
+                        $product_price             = $this->currency_convert( $order['grand_total'] ) - $this->currency_convert($order['meta_data']['shipping_data']['cost']); 
                         $receiver_destination_id   = $order['meta_data']['shipping_data']['district_id'];
                         $receiver_destination_city = sejolise_get_subdistrict_detail( $receiver_destination_id );
                         $receiver_city             = $receiver_destination_city['type'].' '.$receiver_destination_city['city'];
@@ -605,13 +598,13 @@ final class SejoliPaypal extends \SejoliSA\Payment{
                         $recipient_phone           = $order['meta_data']['shipping_data']['phone'];
                     
                     } else {
-                    
-                        $grand_total = $this->currency_convert( $order['grand_total'] );
                         
                         if ( isset( $order['product']->subscription ) ){
-                            $product_price = $this->currency_convert( $order['product']->price ) + $this->currency_convert( $order['product']->subscription['signup']['fee'] );
+                            $grand_total   = $this->currency_convert( $order['grand_total'] );
+                            $product_price = $grand_total; //$this->currency_convert( $order['product']->price ) + $this->currency_convert( $order['product']->subscription['signup']['fee'] );
                         } else {
-                            $product_price = $this->currency_convert( $order['product']->price );
+                            $grand_total   = $this->currency_convert( $order['grand_total'] );
+                            $product_price = $grand_total;
                         }
                         
                         $receiver_destination_id   = $order['user']->data->meta->destination;
@@ -622,6 +615,7 @@ final class SejoliPaypal extends \SejoliSA\Payment{
                         $recipient_name            = $order['user']->data->display_name;
                         $recipient_address         = $order['user']->data->meta->address;
                         $recipient_phone           = $order['user']->data->meta->phone;
+                        $subtotal                  = $product_price; 
                     
                     }
 
@@ -665,7 +659,7 @@ final class SejoliPaypal extends \SejoliSA\Payment{
                                     ),
                                     'shipping_address' => array (
                                         'recipient_name' => $recipient_name,
-                                        'line1'          => $recipient_address,
+                                        'line1'          => preg_replace("/<br\W*?\/>/", ", ", $recipient_address),
                                         'line2'          => '',
                                         'city'           => $receiver_city,
                                         'country_code'   => 'ID',
@@ -757,19 +751,6 @@ final class SejoliPaypal extends \SejoliSA\Payment{
      * @return  string
      */
     public function display_payment_instruction( $invoice_data, $media = 'email' ) {
-
-        // if( 'on-hold' !== $invoice_data['order_data']['status'] ) :
-        //     return;
-        // endif;
-
-        // ob_start();
-
-        // // PUT TEMPLATE ON PAYMENT INSTRUCTION HERE BASED ON MEDIA
-        // $content = ob_get_contents();
-
-        // ob_end_clean();
-
-        // return $content;
         
         if('on-hold' !== $invoice_data['order_data']['status']) :
             return;
