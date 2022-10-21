@@ -596,7 +596,65 @@ final class SejoliPaypal extends \SejoliSA\Payment{
                         $recipient_name            = $order['meta_data']['shipping_data']['receiver'];
                         $recipient_address         = $order['address'];
                         $recipient_phone           = $order['meta_data']['shipping_data']['phone'];
-                    
+
+                        $postDataArray = array (
+                            'intent' => 'sale',
+                            'payer'  => array (
+                                'payment_method' => 'paypal',
+                            ),
+                            'transactions' => array (
+                                0 => array (
+                                    'amount' => array (
+                                        'total'    => ''.$grand_total.'',
+                                        'currency' => 'USD',
+                                        'details'  => array (
+                                            'subtotal'          => ''.$subtotal.'',
+                                            'tax'               => '0.00',
+                                            'shipping'          => ''.$shipping_cost.'',
+                                            'handling_fee'      => '0.00',
+                                            'shipping_discount' => '0.00',
+                                            'insurance'         => '0.00',
+                                        ),
+                                    ),
+                                    'description'     => __('Payment Transaction Succeded.', 'sejoli-paypal'),
+                                    'custom'          => 'payment-'.carbon_get_theme_option('paypal_inv_prefix').$order['ID'],
+                                    'invoice_number'  => carbon_get_theme_option('paypal_inv_prefix').$order['ID'],
+                                    'payment_options' => array (
+                                        'allowed_payment_method' => 'INSTANT_FUNDING_SOURCE',
+                                    ),
+                                    'soft_descriptor' => 'ECHI5786786',
+                                    'item_list' => array (
+                                        'items' => array (
+                                            0 => array (
+                                                'name'        => ''.$order['product']->post_title.'',
+                                                'description' => ''.$order['product']->post_excerpt.'',
+                                                'quantity'    => ''.$order['quantity'].'',
+                                                'price'       => ''.$product_price.'',
+                                                'tax'         => '0.00',
+                                                'sku'         => ''.$order['product']->post_name.'',
+                                                'currency'    => 'USD',
+                                            ),
+                                        ),
+                                        'shipping_address' => array (
+                                            'recipient_name' => $recipient_name,
+                                            'line1'          => preg_replace("/<br\W*?\/>/", ", ", $recipient_address),
+                                            'line2'          => '',
+                                            'city'           => $receiver_city,
+                                            'country_code'   => 'ID',
+                                            'postal_code'    => '',
+                                            'phone'          => $recipient_phone,
+                                            'state'          => $receiver_province,
+                                        ),
+                                    ),
+                                ),
+                            ),
+                            'note_to_payer' => __('Contact us for any questions on your order.', 'sejoli-paypal'),
+                            'redirect_urls' => array (
+                                'return_url' => $redirect_urls,
+                                'cancel_url' => $redirect_urls,
+                            ),
+                        );
+                                            
                     } else {
                         
                         if ( isset( $order['product']->subscription ) ){
@@ -617,65 +675,56 @@ final class SejoliPaypal extends \SejoliSA\Payment{
                         $recipient_phone           = $order['user']->data->meta->phone;
                         $subtotal                  = $product_price; 
                     
-                    }
-
-                    $postDataArray = array (
-                        'intent' => 'sale',
-                        'payer'  => array (
-                            'payment_method' => 'paypal',
-                        ),
-                        'transactions' => array (
-                            0 => array (
-                                'amount' => array (
-                                    'total'    => ''.$grand_total.'',
-                                    'currency' => 'USD',
-                                    'details'  => array (
-                                        'subtotal'          => ''.$subtotal.'',
-                                        'tax'               => '0.00',
-                                        'shipping'          => ''.$shipping_cost.'',
-                                        'handling_fee'      => '0.00',
-                                        'shipping_discount' => '0.00',
-                                        'insurance'         => '0.00',
-                                    ),
-                                ),
-                                'description'     => __('Payment Transaction Succeded.', 'sejoli-paypal'),
-                                'custom'          => 'payment-'.carbon_get_theme_option('paypal_inv_prefix').$order['ID'],
-                                'invoice_number'  => carbon_get_theme_option('paypal_inv_prefix').$order['ID'],
-                                'payment_options' => array (
-                                    'allowed_payment_method' => 'INSTANT_FUNDING_SOURCE',
-                                ),
-                                'soft_descriptor' => 'ECHI5786786',
-                                'item_list' => array (
-                                    'items' => array (
-                                        0 => array (
-                                            'name'        => ''.$order['product']->post_title.'',
-                                            'description' => ''.$order['product']->post_excerpt.'',
-                                            'quantity'    => ''.$order['quantity'].'',
-                                            'price'       => ''.$product_price.'',
-                                            'tax'         => '0.00',
-                                            'sku'         => ''.$order['product']->post_name.'',
-                                            'currency'    => 'USD',
+                        $postDataArray = array (
+                            'intent' => 'sale',
+                            'payer'  => array (
+                                'payment_method' => 'paypal',
+                            ),
+                            'transactions' => array (
+                                0 => array (
+                                    'amount' => array (
+                                        'total'    => ''.$grand_total.'',
+                                        'currency' => 'USD',
+                                        'details'  => array (
+                                            'subtotal'          => ''.$subtotal.'',
+                                            'tax'               => '0.00',
+                                            'shipping'          => ''.$shipping_cost.'',
+                                            'handling_fee'      => '0.00',
+                                            'shipping_discount' => '0.00',
+                                            'insurance'         => '0.00',
                                         ),
                                     ),
-                                    'shipping_address' => array (
-                                        'recipient_name' => $recipient_name,
-                                        'line1'          => preg_replace("/<br\W*?\/>/", ", ", $recipient_address),
-                                        'line2'          => '',
-                                        'city'           => $receiver_city,
-                                        'country_code'   => 'ID',
-                                        'postal_code'    => '',
-                                        'phone'          => $recipient_phone,
-                                        'state'          => $receiver_province,
+                                    'description'     => __('Payment Transaction Succeded.', 'sejoli-paypal'),
+                                    'custom'          => 'payment-'.carbon_get_theme_option('paypal_inv_prefix').$order['ID'],
+                                    'invoice_number'  => carbon_get_theme_option('paypal_inv_prefix').$order['ID'],
+                                    'payment_options' => array (
+                                        'allowed_payment_method' => 'INSTANT_FUNDING_SOURCE',
+                                    ),
+                                    'soft_descriptor' => 'ECHI5786786',
+                                    'item_list' => array (
+                                        'items' => array (
+                                            0 => array (
+                                                'name'        => ''.$order['product']->post_title.'',
+                                                'description' => ''.$order['product']->post_excerpt.'',
+                                                'quantity'    => ''.$order['quantity'].'',
+                                                'price'       => ''.$product_price.'',
+                                                'tax'         => '0.00',
+                                                'sku'         => ''.$order['product']->post_name.'',
+                                                'currency'    => 'USD',
+                                            ),
+                                        ),
                                     ),
                                 ),
                             ),
-                        ),
-                        'note_to_payer' => __('Contact us for any questions on your order.', 'sejoli-paypal'),
-                        'redirect_urls' => array (
-                            'return_url' => $redirect_urls,
-                            'cancel_url' => $redirect_urls,
-                        ),
-                    );
+                            'note_to_payer' => __('Contact us for any questions on your order.', 'sejoli-paypal'),
+                            'redirect_urls' => array (
+                                'return_url' => $redirect_urls,
+                                'cancel_url' => $redirect_urls,
+                            ),
+                        );
+
+                    }
+
 
                     $postData = json_encode( $postDataArray );
         
