@@ -447,7 +447,7 @@ final class SejoliPaypal extends \SejoliSA\Payment{
     }
 
     /**
-     * Currency Converter IDR to USD
+     * Currency Converter IDR, MYR to USD
      * @since   1.0.0
      * @return  float
      */
@@ -456,9 +456,19 @@ final class SejoliPaypal extends \SejoliSA\Payment{
         $url  = 'https://api.exchangerate-api.com/v4/latest/USD';
         $json = file_get_contents($url);
         $exp  = json_decode($json);
+        $currency_type = sejolisa_carbon_get_theme_option('sejoli_currency_type');
 
-        $idr     = $exp->rates->IDR;
-        $convert = $amount / $idr;
+        if( $currency_type === "IDR" ) :
+            
+            $idr     = $exp->rates->IDR;
+            $convert = $amount / $idr;
+
+        elseif( $currency_type === "MYR" ) :
+
+            $myr     = $exp->rates->MYR;
+            $convert = $amount / $myr;
+
+        endif;
 
         return round( $convert, 2 );
     
@@ -475,6 +485,7 @@ final class SejoliPaypal extends \SejoliSA\Payment{
         $request_to_paypal = false;
         $data_order        = $this->check_data_table( $order['ID'] );
         $request_to_paypal = true;
+        $currency_type     = sejolisa_carbon_get_theme_option('sejoli_currency_type');
 
         if ( $request_to_paypal === true ) {
             
@@ -531,19 +542,6 @@ final class SejoliPaypal extends \SejoliSA\Payment{
                 }
  
             }
-            
-            // check order type to determince recurring rules
-            $recurringAmount = 0;
-            $period          = '';
-            $rebillTimes     = '0';
-
-            if ( strpos( $order['type'], 'subscription' ) !== FALSE ) {
-
-                $recurringAmount = $order['product']->subscription['regular']['price'];
-                $period          = $order['product']->subscription['regular']['duration'] . strtoupper( substr( $order['product']->subscription['regular']['period'], 0, 1 ) );
-                $rebillTimes     = 99999;
-
-            } 
 
             $redirect_urls = home_url( "checkout/thank-you/?order_id=".$order['ID']."/" );
             $url_success   = home_url( 'member-area' );
@@ -573,6 +571,7 @@ final class SejoliPaypal extends \SejoliSA\Payment{
                     );
 
                     if ( $executeTransaction['state'] === 'approved' ) {
+
                         $this->update_status( $order['ID'], 'paid' );
                         sejolisa_update_order_status( $args );
 
@@ -585,14 +584,28 @@ final class SejoliPaypal extends \SejoliSA\Payment{
 
                     if ( isset( $order['meta_data']['shipping_data'] ) ) {
 
-                        $grand_total               = $this->currency_convert( $order['grand_total'] );
-                        $subtotal                  = $this->currency_convert( $order['grand_total'] ) - $this->currency_convert($order['meta_data']['shipping_data']['cost']);
-                        $product_price             = $this->currency_convert( $order['grand_total'] ) - $this->currency_convert($order['meta_data']['shipping_data']['cost']); 
+                        if( $currency_type === "IDR" || $currency_type === "MYR" ) :
+                        
+                            $grand_total   = $this->currency_convert( $order['grand_total'] );
+                            $subtotal      = $this->currency_convert( $order['grand_total'] ) - $this->currency_convert($order['meta_data']['shipping_data']['cost']);
+                            $product_price = $this->currency_convert( $order['grand_total'] ) - $this->currency_convert($order['meta_data']['shipping_data']['cost']); 
+                            $shipping_cost = $this->currency_convert($order['meta_data']['shipping_data']['cost']);
+
+                        else:
+
+                            $grand_total             = number_format(absint($order['grand_total']), 2, '.', ',');
+                            $calculate_subtotal      = $order['grand_total'] - $order['meta_data']['shipping_data']['cost'];
+                            $subtotal                = number_format(absint($calculate_subtotal), 2, '.', ',');
+                            $calculate_product_price = $order['grand_total'] - $order['meta_data']['shipping_data']['cost'];
+                            $product_price           = number_format(absint($calculate_product_price), 2, '.', ',');
+                            $shipping_cost           = number_format(absint($order['meta_data']['shipping_data']['cost']), 2, '.', ',');
+
+                        endif;
+
                         $receiver_destination_id   = $order['meta_data']['shipping_data']['district_id'];
                         $receiver_destination_city = sejolise_get_subdistrict_detail( $receiver_destination_id );
                         $receiver_city             = $receiver_destination_city['type'].' '.$receiver_destination_city['city'];
                         $receiver_province         = $receiver_destination_city['province'];
-                        $shipping_cost             = $this->currency_convert($order['meta_data']['shipping_data']['cost']);
                         $recipient_name            = $order['meta_data']['shipping_data']['receiver'];
                         $recipient_address         = $order['address'];
                         $recipient_phone           = $order['meta_data']['shipping_data']['phone'];
@@ -656,14 +669,36 @@ final class SejoliPaypal extends \SejoliSA\Payment{
                         );
                                             
                     } else {
-                        
-                        if ( isset( $order['product']->subscription ) ){
-                            $grand_total   = $this->currency_convert( $order['grand_total'] );
-                            $product_price = $grand_total; //$this->currency_convert( $order['product']->price ) + $this->currency_convert( $order['product']->subscription['signup']['fee'] );
-                        } else {
-                            $grand_total   = $this->currency_convert( $order['grand_total'] );
-                            $product_price = $grand_total;
-                        }
+
+                        if( $currency_type === "IDR" || $currency_type === "MYR" ) :
+
+                            if ( isset( $order['product']->subscription ) ) :
+                            
+                                $grand_total   = $this->currency_convert( $order['grand_total'] );
+                                $product_price = $grand_total; //$this->currency_convert( $order['product']->price ) + $this->currency_convert( $order['product']->subscription['signup']['fee'] );
+                            
+                            else:
+                            
+                                $grand_total   = $this->currency_convert( $order['grand_total'] );
+                                $product_price = $grand_total;
+                            
+                            endif;
+
+                        else:
+
+                            if ( isset( $order['product']->subscription ) ) :
+
+                                $grand_total   = number_format(absint($order['grand_total']), 2, '.', ',');
+                                $product_price = number_format(absint($grand_total), 2, '.', ',');
+                            
+                            else:
+
+                                $grand_total   = number_format(absint($order['grand_total']), 2, '.', ',');
+                                $product_price = number_format(absint($grand_total), 2, '.', ',');
+                            
+                            endif;
+
+                        endif;
                         
                         $receiver_destination_id   = $order['user']->data->meta->destination;
                         $receiver_destination_city = sejolise_get_subdistrict_detail( $receiver_destination_id );
@@ -725,11 +760,8 @@ final class SejoliPaypal extends \SejoliSA\Payment{
 
                     }
 
-
-                    $postData = json_encode( $postDataArray );
-        
+                    $postData = json_encode( $postDataArray );        
                     $postData = apply_filters( 'paypal_before_post_transaction', $postData, $order['ID'] );
-
                     $resBody  = $this->postTransaction( $apiUri, $token, $postData );
 
                     $this->add_to_table($order['ID']);
@@ -737,6 +769,7 @@ final class SejoliPaypal extends \SejoliSA\Payment{
                     $resBody['executePaymentUrl'] = isset( $resBody['links'][2]['href'] ) ? $resBody['links'][2]['href'] : '';
                     
                     $this->update_detail( $order['ID'], $resBody );
+                    
                     wp_redirect( $resBody['paymentUrl'] );
                     exit;
                 
@@ -896,8 +929,8 @@ final class SejoliPaypal extends \SejoliSA\Payment{
      * @since   1.0.0
      * @return  array
      */
-    private function postTransaction($apiUri, $token, $postData)
-    {
+    private function postTransaction($apiUri, $token, $postData) {
+
         $time = $this->paypal_generate_isotime();
         $url  = 'POST:/payments/payment';
         
