@@ -216,31 +216,31 @@ final class SejoliPaypal extends \SejoliSA\Payment{
       
         if( isset( $_GET['paypal-ipn'] ) && false !== boolval( $_GET['paypal-ipn'] ) ) :
             
-            if ( carbon_get_theme_option( 'paypal_mode' ) == 'sandbox' ) {
+            if ( carbon_get_theme_option( 'paypal_mode' ) == 'sandbox' ) :
                 
                 $key = carbon_get_theme_option( 'paypal_secret_sandbox' );
             
-            } else {
+            else:
 
                 $key = carbon_get_theme_option( 'paypal_secret_live' );
             
-            }
+            endif;
 
             $data      = json_decode( sanitize_text_field( stripslashes($_POST['data'] ) ), true );
             $encoded   = json_encode( $data );
             $checkHash = hash_hmac( 'sha256', $encoded, $key );
             
-            if ( hash_equals( $checkHash, sanitize_text_field( $_POST['hash'] ) ) ) {
+            if ( hash_equals( $checkHash, sanitize_text_field( $_POST['hash'] ) ) ) :
             
                 // Update order status
-                if ($data['action'] == 1) {
+                if ($data['action'] == 1) :
             
                     $prefix   = carbon_get_theme_option( 'paypal_inv_prefix' );
                     $order_id = substr( $data['invoice_id'], strlen( $prefix ), strlen( $data['invoice_id'] ) - strlen( $prefix ) + 1 );
                 
                     $this->complete_order( $order_id );
      
-                } elseif ( $data['action'] == 7 ) {
+                elseif ( $data['action'] == 7 ) :
                     
                     global $wpdb;
                     
@@ -251,13 +251,13 @@ final class SejoliPaypal extends \SejoliSA\Payment{
                                     'order_id'  => $order_id
                                 ))
                                 ->update(['paid_status' => 1]);
-                }
+                endif;
 
                 do_action( 'sejoli/log/write', 'ipn-paypal-success', array( 'payload', $_POST ) ); 
                 header( 'content-type: application/json' );
                 die( json_encode( ['success' => 1] ) );
 
-            } else {
+            else:
 
                 $_POST['calcHash'] = $checkHash;
                 $_POST['key']      = $key;
@@ -268,7 +268,7 @@ final class SejoliPaypal extends \SejoliSA\Payment{
                 header( 'content-type: application/json' );
                 die( json_encode( ['success' => 0, 'msg' => 'invalid data'] ) );
 
-            }
+            endif;
                 
         endif;
 
@@ -491,7 +491,7 @@ final class SejoliPaypal extends \SejoliSA\Payment{
             
             $mode = carbon_get_theme_option( 'paypal_mode' );
             
-            if ( $mode === 'live' ) {
+            if ( $mode === 'live' ) :
 
                 $apiUri        = 'https://api-m.paypal.com/v1';
                 $client_id     = carbon_get_theme_option( 'paypal_client_id_live' );
@@ -500,7 +500,7 @@ final class SejoliPaypal extends \SejoliSA\Payment{
                 $tokenExpiry   = get_option( 'paypal_live_token_expiration' );
                 $baseAppUrl    = 'https://api-m.paypal.com';
      
-            } else {
+            else:
 
                 $apiUri        = 'https://api-m.sandbox.paypal.com/v1';
                 $client_id     = carbon_get_theme_option( 'paypal_client_id_sandbox' );
@@ -509,16 +509,16 @@ final class SejoliPaypal extends \SejoliSA\Payment{
                 $tokenExpiry   = get_option( 'paypal_sandbox_token_expiration' );
                 $baseAppUrl    = 'https://api-m.sandbox.paypal.com';
             
-            }
+            endif;
 
-            if ( !empty( $token ) && !empty( $tokenExpiry ) && $tokenExpiry > time() ) {
+            if ( !empty( $token ) && !empty( $tokenExpiry ) && $tokenExpiry > time() ) :
                 // use last token
-            } else {
+            else:
                 $token = $this->paypal_renew_token( $apiUri, $client_id, $client_secret );
-            }
+            endif;
                             
             $affComm = [];
-            if (isset($order['affiliate']) && !empty($order['affiliate'])) {
+            if (isset($order['affiliate']) && !empty($order['affiliate'])) :
      
                 global $wpdb;
      
@@ -529,7 +529,7 @@ final class SejoliPaypal extends \SejoliSA\Payment{
                             ))
                             ->first();
 
-                if ( isset( $commData->ID ) && !empty( $commData->ID ) ) {
+                if ( isset( $commData->ID ) && !empty( $commData->ID ) ) :
  
                     $affComm[] = [
                         'email'               => $aff->user_email,
@@ -539,20 +539,20 @@ final class SejoliPaypal extends \SejoliSA\Payment{
                         'merchant_id'         => $client_id,
                     ];
  
-                }
+                endif;
  
-            }
+            endif;
 
             $redirect_urls = home_url( "checkout/thank-you/?order_id=".$order['ID']."/" );
             $url_success   = home_url( 'member-area' );
             
-            if ( !empty( $token ) ) {
+            if ( !empty( $token ) ) :
         
                 $payID    = isset( $_GET['paymentId'] ) ? $_GET['paymentId'] : '';
                 $payToken = isset( $_GET['token'] ) ? $_GET['token'] : '';
                 $payerID  = isset( $_GET['PayerID'] ) ? $_GET['PayerID'] : '';
 
-                if ( $payID && $payToken && $payerID ) {
+                if ( $payID && $payToken && $payerID ) :
    
                     $data_order = $this->check_data_table( $order['ID'] ); 
                     $detail     = unserialize( $data_order->payload );
@@ -570,7 +570,7 @@ final class SejoliPaypal extends \SejoliSA\Payment{
                         'status' => 'payment-confirm'
                     );
 
-                    if ( $executeTransaction['state'] === 'approved' ) {
+                    if ( $executeTransaction['state'] === 'approved' ) :
 
                         $this->update_status( $order['ID'], 'paid' );
                         sejolisa_update_order_status( $args );
@@ -578,13 +578,13 @@ final class SejoliPaypal extends \SejoliSA\Payment{
                         wp_redirect( $redirect_urls );
                         exit;
 
-                    }
+                    endif;
                     
-                } else {
+                else:
 
-                    if ( isset( $order['meta_data']['shipping_data'] ) ) {
+                    if ( isset( $order['meta_data']['shipping_data'] ) ) :
 
-                        if( $currency_type === "IDR" || $currency_type === "MYR" ) :
+                        if ( in_array($currency_type, ['IDR', 'MYR']) ) :
                         
                             $grand_total   = $this->currency_convert( $order['grand_total'] );
                             $subtotal      = $this->currency_convert( $order['grand_total'] ) - $this->currency_convert($order['meta_data']['shipping_data']['cost']);
@@ -668,9 +668,9 @@ final class SejoliPaypal extends \SejoliSA\Payment{
                             ),
                         );
                                             
-                    } else {
+                    else:
 
-                        if( $currency_type === "IDR" || $currency_type === "MYR" ) :
+                        if ( in_array($currency_type, ['IDR', 'MYR']) ) :
 
                             if ( isset( $order['product']->subscription ) ) :
                             
@@ -758,7 +758,9 @@ final class SejoliPaypal extends \SejoliSA\Payment{
                             ),
                         );
 
-                    }
+                    endif;
+
+                    error_log(print_r($postDataArray, true));
 
                     $postData = json_encode( $postDataArray );        
                     $postData = apply_filters( 'paypal_before_post_transaction', $postData, $order['ID'] );
@@ -773,9 +775,9 @@ final class SejoliPaypal extends \SejoliSA\Payment{
                     wp_redirect( $resBody['paymentUrl'] );
                     exit;
                 
-                }
+                endif;
             
-            } else {
+            else:
                 
                 do_action( 'sejoli/log/write', 'error-paypal', array( 'empty token', $order['ID'] ) );
                 wp_die(
@@ -783,7 +785,7 @@ final class SejoliPaypal extends \SejoliSA\Payment{
                     __('Terjadi kesalahan', 'sejoli-paypal')
                 );
             
-            }
+            endif;
 
         }
 
