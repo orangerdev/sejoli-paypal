@@ -475,6 +475,30 @@ final class SejoliPaypal extends \SejoliSA\Payment{
     }
 
     /**
+     * Update order status based on product type ( digital or physic)
+     * It's fired when payment module confirm the order payment
+     *
+     * @since   1.0.0
+     * @param   int     $order_id
+     * @return  void
+     */
+    protected function update_order_status($order_id) {
+
+        $respond = sejolisa_get_order(['ID' => $order_id]);
+
+        if(false !== $respond['valid']) :
+            $order   = $respond['orders'];
+            $product = sejolisa_get_product($order['product_id']);
+            $status  = ('digital' === $product->type) ? 'completed' : 'in-progress';
+
+            do_action('sejoli/order/update-status',[
+                'ID'       => $order['ID'],
+                'status'   => $status
+            ]);
+        endif;
+    }
+
+    /**
      * Prepare Paypal Data
      * @since   1.0.0
      * @return  array
@@ -565,15 +589,10 @@ final class SejoliPaypal extends \SejoliSA\Payment{
 
                     $executeTransaction = $this->executeTransaction( $detail['executePaymentUrl'], $token, $executeData );
 
-                    $args = array(
-                        'ID'     => $order['ID'],
-                        'status' => 'payment-confirm'
-                    );
-
                     if ( $executeTransaction['state'] === 'approved' ) :
 
                         $this->update_status( $order['ID'], 'paid' );
-                        sejolisa_update_order_status( $args );
+                        $this->update_order_status( $order['ID'] );
 
                         wp_redirect( $redirect_urls );
                         exit;
@@ -760,8 +779,6 @@ final class SejoliPaypal extends \SejoliSA\Payment{
 
                     endif;
 
-                    error_log(print_r($postDataArray, true));
-
                     $postData = json_encode( $postDataArray );        
                     $postData = apply_filters( 'paypal_before_post_transaction', $postData, $order['ID'] );
                     $resBody  = $this->postTransaction( $apiUri, $token, $postData );
@@ -816,8 +833,8 @@ final class SejoliPaypal extends \SejoliSA\Payment{
 
             else :
 
-                $title = __('Order sudah diproses', 'sejoli-paypal');
-                require 'template/checkout/order-processed.php';
+                $title = __('Order selesai', 'sejoli-paypal');
+                require 'template/checkout/order-completed.php';
 
             endif;
 

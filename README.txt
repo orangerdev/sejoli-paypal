@@ -19,6 +19,10 @@ e.g.
 1. Upload `sejoli-paypal.zip` to the `/wp-content/plugins/` directory
 1. Activate the plugin through the 'Plugins' menu in WordPress
 
+= 1.0.2 =
+23 January 2024
+* Fix callback
+
 = 1.0.1 =
 08 January 2024
 * Support compatibility currencies
