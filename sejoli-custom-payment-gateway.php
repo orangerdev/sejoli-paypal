@@ -9,7 +9,7 @@
  * Plugin Name:       Sejoli - Paypal Payment Gateway
  * Plugin URI:        https://sejoli.co.id
  * Description:       Integrate Sejoli Premium WordPress Membership Plugin with Paypal Payment Gateway.
- * Version:           1.0.2
+ * Version:           1.0.3
  * Requires PHP: 	  7.2.1
  * Author:            Sejoli
  * Author URI:        https://sejoli.co.id
