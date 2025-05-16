@@ -5,7 +5,6 @@ use Carbon_Fields\Field;
 use SejoliSA\Admin\Product as AdminProduct;
 use SejoliSA\JSON\Product;
 use SejoliSA\Model\Affiliate;
-use Illuminate\Database\Capsule\Manager as Capsule;
 
 final class SejoliPaypal extends \SejoliSA\Payment{
 
@@ -51,20 +50,28 @@ final class SejoliPaypal extends \SejoliSA\Payment{
      * @return  void
      */
     public function register_trx_table() {
+     
+        global $wpdb;
 
-        if( !Capsule::schema()->hasTable( $this->table ) ):
+        $table_name = $this->table;
 
-            Capsule::schema()->create( $this->table, function( $table ) {
-                $table->increments('ID');
-                $table->datetime('created_at');
-                $table->datetime('last_update')->nullable();
-                $table->integer('order_id');
-                $table->string('status');
-                $table->string('ref')->nullable();
-                $table->text('payload')->nullable();
-            });
+        if( $wpdb->get_var( "SHOW TABLES LIKE '$table_name'" ) != $table_name ) {
 
-        endif;
+            $query = "CREATE TABLE $table_name (
+                ID bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+                created_at datetime NOT NULL,
+                last_update datetime DEFAULT NULL,
+                order_id bigint(20) NOT NULL,
+                status varchar(255) NOT NULL,
+                ref varchar(255) DEFAULT NULL,
+                payload text DEFAULT NULL,
+                PRIMARY KEY (ID)
+            ) CHARACTER SET utf8 COLLATE utf8_general_ci;";
+
+            require_once( ABSPATH . 'wp-admin/includes/upgrade.php' );
+            dbDelta( $query );
+
+        }
 
     }
 
@@ -75,12 +82,17 @@ final class SejoliPaypal extends \SejoliSA\Payment{
      * @return  false|object
      */
     protected function check_data_table( int $order_id ) {
+     
+        global $wpdb;
 
-        return Capsule::table( $this->table )
-            ->where(array(
-                'order_id' => $order_id
-            ))
-            ->first();
+        $table_name = $this->table;
+
+        $query = $wpdb->prepare( 
+            "SELECT * FROM $table_name WHERE order_id = %d LIMIT 1", 
+            $order_id 
+        );
+
+        return $wpdb->get_row( $query );
 
     }
 
@@ -91,14 +103,19 @@ final class SejoliPaypal extends \SejoliSA\Payment{
      * @return  void
      */
     protected function add_to_table( int $order_id ) {
+     
+        global $wpdb;
 
-        Capsule::table( $this->table )
-            ->insert([
-                'created_at' => current_time( 'mysql' ),
-                'order_id'   => $order_id,
-                'status'     => 'pending'
-            ]);
-    
+        $table_name = $this->table;
+
+        $data = array(
+            'created_at' => current_time('mysql'),
+            'order_id'   => $order_id,
+            'status'     => 'pending',
+        );
+
+        $wpdb->insert( $table_name, $data );
+
     }
 
     /**
@@ -109,15 +126,21 @@ final class SejoliPaypal extends \SejoliSA\Payment{
      * @return  void
      */
     protected function update_status( $order_id, $status ) {
-  
-        Capsule::table( $this->table )
-            ->where(array(
-                'order_id' => $order_id
-            ))
-            ->update(array(
-                'status'      => $status,
-                'last_update' => current_time( 'mysql' )
-            ));
+     
+        global $wpdb;
+
+        $table_name = $this->table;
+
+        $data = array(
+            'status'      => $status,
+            'last_update' => current_time('mysql'),
+        );
+
+        $where = array(
+            'order_id' => $order_id,
+        );
+
+        $wpdb->update( $table_name, $data, $where );
 
     }
 
@@ -129,14 +152,20 @@ final class SejoliPaypal extends \SejoliSA\Payment{
      * @return  void
      */
     protected function update_detail( $order_id, $detail ) {
-    
-        Capsule::table( $this->table )
-            ->where(array(
-                'order_id' => $order_id
-            ))
-            ->update(array(
-                'payload' => serialize( $detail ),
-            ));
+     
+        global $wpdb;
+
+        $table_name = $this->table;
+
+        $data = array(
+            'payload' => serialize($detail),
+        );
+
+        $where = array(
+            'order_id' => $order_id,
+        );
+
+        $wpdb->update( $table_name, $data, $where );
 
     }
 
@@ -241,16 +270,27 @@ final class SejoliPaypal extends \SejoliSA\Payment{
                     $this->complete_order( $order_id );
      
                 elseif ( $data['action'] == 7 ) :
-                    
+
                     global $wpdb;
-                    
+
                     $prefix   = carbon_get_theme_option( 'paypal_inv_prefix' );
                     $order_id = substr( $data['invoice_id'], strlen( $prefix ), strlen( $data['invoice_id'] ) - strlen( $prefix ) + 1 );
-                    $commData = Capsule::table( $wpdb->prefix . 'sejolisa_affiliates' )
-                                ->where(array(
-                                    'order_id'  => $order_id
-                                ))
-                                ->update(['paid_status' => 1]);
+
+                    $table_affiliates = $wpdb->prefix . 'sejolisa_affiliates';
+
+                    // Prepare the data to update
+                    $data = array(
+                        'paid_status' => 1,
+                    );
+
+                    // Prepare the WHERE condition
+                    $where = array(
+                        'order_id' => $order_id,
+                    );
+
+                    // Update the table with the new value
+                    $wpdb->update( $table_affiliates, $data, $where );
+
                 endif;
 
                 do_action( 'sejoli/log/write', 'ipn-paypal-success', array( 'payload', $_POST ) ); 
@@ -545,16 +585,21 @@ final class SejoliPaypal extends \SejoliSA\Payment{
             if (isset($order['affiliate']) && !empty($order['affiliate'])) :
      
                 global $wpdb;
-     
-                $aff      = $order['affiliate']->data;
-                $commData = Capsule::table( $wpdb->prefix . 'sejolisa_affiliates' )
-                            ->where(array(
-                                'order_id'  => $order['ID']
-                            ))
-                            ->first();
 
+                $aff = $order['affiliate']->data;
+
+                $table_name = $wpdb->prefix . 'sejolisa_affiliates';
+
+                $query = $wpdb->prepare( 
+                    "SELECT * FROM $table_name WHERE order_id = %d LIMIT 1", 
+                    $order['ID']
+                );
+
+                // Execute the query and get the result
+                $commData = $wpdb->get_row( $query );
+
+                // Check if the commission data exists
                 if ( isset( $commData->ID ) && !empty( $commData->ID ) ) :
- 
                     $affComm[] = [
                         'email'               => $aff->user_email,
                         'name'                => $aff->display_name,
@@ -562,7 +607,6 @@ final class SejoliPaypal extends \SejoliSA\Payment{
                         'rebill_share_amount' => 0,
                         'merchant_id'         => $client_id,
                     ];
- 
                 endif;
  
             endif;
